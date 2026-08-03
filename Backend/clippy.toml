@@ -1,0 +1,8 @@
+# Clippy lint configuration for the LockA Backend workspace.
+# Actual lint gating (`-D warnings`) happens on the command line (see pre-commit
+# hook and CI), not via source-level `#![deny(...)]` attributes.
+
+msrv = "1.93.1"
+cognitive-complexity-threshold = 30
+too-many-arguments-threshold = 8
+type-complexity-threshold = 250

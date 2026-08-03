@@ -42,7 +42,23 @@ cargo build
 
 ## Formatting & linting
 
+Style is defined in `rustfmt.toml`; lint thresholds (complexity, arity, MSRV) are defined in
+`clippy.toml`. Lints are gated on the command line with `-D warnings`, not via source-level
+`#![deny(...)]` attributes, so CI and local checks stay in sync from one place.
+
 ```sh
 cargo fmt --check
 cargo clippy --workspace -- -D warnings
 ```
+
+## Pre-commit hooks
+
+A git pre-commit hook runs the two commands above automatically, scoped to commits that touch
+`Backend/` Rust sources or manifests. Set it up once per clone:
+
+```sh
+./Backend/scripts/setup-hooks.sh
+```
+
+This points git's `core.hooksPath` at `Backend/.githooks`. To bypass it for a single commit (not
+recommended), use `git commit --no-verify`.

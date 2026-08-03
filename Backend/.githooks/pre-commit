@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Pre-commit hook: runs cargo fmt + clippy on staged Backend/ changes.
+# Installed via Backend/scripts/setup-hooks.sh (sets core.hooksPath).
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# Skip entirely if nothing under Backend/ (sources or manifests) is staged.
+if ! git -C "$repo_root" diff --cached --name-only --diff-filter=ACM \
+    | grep -qE '^Backend/(.*\.rs|.*Cargo\.(toml|lock))$'; then
+  exit 0
+fi
+
+cd "$repo_root/Backend"
+
+echo "pre-commit: cargo fmt --check"
+if ! cargo fmt --check; then
+  echo >&2
+  echo "pre-commit: formatting issues found. Run 'cargo fmt' inside Backend/ and re-stage." >&2
+  exit 1
+fi
+
+echo "pre-commit: cargo clippy --workspace -- -D warnings"
+if ! cargo clippy --workspace -- -D warnings; then
+  echo >&2
+  echo "pre-commit: clippy found warnings/errors. Fix them and re-stage." >&2
+  exit 1
+fi
+
+exit 0
