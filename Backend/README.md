@@ -14,7 +14,8 @@ Backend/
 ├── worker/               # background binary — Soroban contract event indexer / async jobs
 ├── domain/               # core domain types and business logic, no I/O
 ├── soroban/              # Stellar/Soroban RPC client, transaction building, contract bindings
-└── storage/              # PostgreSQL (sqlx) + encrypted object storage integrations
+├── storage/              # PostgreSQL (sqlx) + encrypted object storage integrations
+└── telemetry/            # shared tracing/logging subscriber setup
 ```
 
 ### Crate responsibilities
@@ -26,8 +27,9 @@ Backend/
 | `domain` | lib | Core domain types, validation, and business rules, independent of any web framework, database, or chain client. |
 | `soroban` | lib | Stellar/Soroban RPC client wrapper, unsigned transaction/XDR building, and generated contract client bindings. |
 | `storage` | lib | PostgreSQL access (via `sqlx`) and encrypted object storage (S3-compatible/IPFS) for off-chain records. |
+| `telemetry` | lib | Shared `tracing` subscriber setup (`telemetry::init`) used by both binaries — see [Logging](#logging). |
 
-`api` and `worker` are expected to depend on `domain`, `soroban`, and `storage`; those three library crates should not depend on `api` or `worker`.
+`api` and `worker` are expected to depend on `domain`, `soroban`, `storage`, and `telemetry`; the library crates should not depend on `api` or `worker`.
 
 ## Prerequisites
 
@@ -49,6 +51,29 @@ Style is defined in `rustfmt.toml`; lint thresholds (complexity, arity, MSRV) ar
 ```sh
 cargo fmt --check
 cargo clippy --workspace -- -D warnings
+```
+
+## Logging
+
+Both binaries call `telemetry::init()` once at startup to install a global `tracing` subscriber.
+
+- **Level filter**: standard `RUST_LOG` env var (e.g. `RUST_LOG=info,api=debug`), defaults to `info`.
+- **Format**: `LOG_FORMAT=json` for structured production logs; unset (or anything else) for
+  human-readable local development output.
+- Every span opened with `#[tracing::instrument]` automatically gets a `close` event with
+  `time.busy` / `time.idle` fields — instrumenting a function is enough to make its duration
+  observable, no manual timing code needed. `soroban` and `storage` declare `tracing` as a
+  dependency for this reason; real RPC/DB call sites should follow this convention as they land
+  (issues #11 and #9).
+- The `api` crate assigns a UUID `x-request-id` to every request (via `tower-http`'s
+  `request_id` middleware), attaches it to that request's tracing span, and echoes it back on the
+  response header — so a single request can be traced end-to-end through the logs.
+
+```sh
+# human-readable, local dev
+cargo run -p api
+# structured JSON, e.g. for production
+LOG_FORMAT=json RUST_LOG=info cargo run -p api
 ```
 
 ## Pre-commit hooks
