@@ -15,7 +15,8 @@ Backend/
 ├── config/               # typed configuration layer (env vars + .env, fail-fast)
 ├── domain/               # core domain types and business logic, no I/O
 ├── soroban/              # Stellar/Soroban RPC client, transaction building, contract bindings
-└── storage/              # PostgreSQL (sqlx) + encrypted object storage integrations
+├── storage/              # PostgreSQL (sqlx) + encrypted object storage integrations
+└── telemetry/            # shared tracing/logging subscriber setup
 ```
 
 ### Crate responsibilities
@@ -28,8 +29,9 @@ Backend/
 | `domain` | lib | Core domain types, validation, and business rules, independent of any web framework, database, or chain client. |
 | `soroban` | lib | Stellar/Soroban RPC client wrapper, unsigned transaction/XDR building, and generated contract client bindings. |
 | `storage` | lib | PostgreSQL access (via `sqlx`) and encrypted object storage (S3-compatible/IPFS) for off-chain records. |
+| `telemetry` | lib | Shared `tracing` subscriber setup (`telemetry::init`) used by both binaries — see [Logging](#logging). |
 
-`api` and `worker` are expected to depend on `config`, `domain`, `soroban`, and `storage`; those library crates should not depend on `api` or `worker`.
+`api` and `worker` are expected to depend on `domain`, `soroban`, `storage`, and `telemetry`; the library crates should not depend on `api` or `worker`.
 
 ## Prerequisites
 
@@ -53,36 +55,28 @@ cargo fmt --check
 cargo clippy --workspace -- -D warnings
 ```
 
-## Configuration & secrets
+## Logging
 
-Both binaries call `config::Settings::load()` once at startup: it loads `Backend/.env` if one is
-present (ignored if missing), then deserializes the process environment into a typed `Settings`
-struct. If a required variable is missing, or a value can't be parsed into its expected type, the
-process prints a specific, actionable error (e.g. `missing required environment variable:
-DATABASE_URL`) and exits immediately — it never runs with partial configuration.
+Both binaries call `telemetry::init()` once at startup to install a global `tracing` subscriber.
 
-See [`Backend/.env.example`](.env.example) for the full list of variables, which ones are
-required vs. optional-with-defaults, and example values. Copy it to `Backend/.env` and fill in
-real values for local development:
+- **Level filter**: standard `RUST_LOG` env var (e.g. `RUST_LOG=info,api=debug`), defaults to `info`.
+- **Format**: `LOG_FORMAT=json` for structured production logs; unset (or anything else) for
+  human-readable local development output.
+- Every span opened with `#[tracing::instrument]` automatically gets a `close` event with
+  `time.busy` / `time.idle` fields — instrumenting a function is enough to make its duration
+  observable, no manual timing code needed. `soroban` and `storage` declare `tracing` as a
+  dependency for this reason; real RPC/DB call sites should follow this convention as they land
+  (issues #11 and #9).
+- The `api` crate assigns a UUID `x-request-id` to every request (via `tower-http`'s
+  `request_id` middleware), attaches it to that request's tracing span, and echoes it back on the
+  response header — so a single request can be traced end-to-end through the logs.
 
 ```sh
-cp Backend/.env.example Backend/.env
+# human-readable, local dev
+cargo run -p api
+# structured JSON, e.g. for production
+LOG_FORMAT=json RUST_LOG=info cargo run -p api
 ```
-
-`Settings`'s `Debug` impl redacts secret fields (`OBJECT_STORAGE_ACCESS_KEY_ID`,
-`OBJECT_STORAGE_SECRET_ACCESS_KEY`, `JWT_SIGNING_KEY`, `DATABASE_URL`) as `[REDACTED]`, so
-accidentally logging a `Settings` value can't leak credentials.
-
-### How secrets are supplied per environment
-
-| Environment | How secrets get in | Committed to source control? |
-| --- | --- | --- |
-| Local development | `Backend/.env` (copied from `.env.example`, filled in by hand) | Never — gitignored (`Backend/.gitignore`) |
-| CI | Repository/organization secrets injected as job env vars by the CI provider | Never |
-| Staging / Production | Real environment variables injected by the deployment platform (its own secret manager, e.g. Vault, AWS Secrets Manager, or the platform's built-in env var/secrets store) | Never |
-
-No real secret should ever be committed, including in `.env.example` (which contains only
-placeholder values like `changeme`) or in code.
 
 ## Pre-commit hooks
 
