@@ -12,6 +12,7 @@ Backend/
 ├── rust-toolchain.toml   # pinned Rust toolchain (rustup will auto-install this version)
 ├── api/                  # HTTP service binary — Axum-based REST API entrypoint
 ├── worker/               # background binary — Soroban contract event indexer / async jobs
+├── config/               # typed configuration layer (env vars + .env, fail-fast)
 ├── domain/               # core domain types and business logic, no I/O
 ├── soroban/              # Stellar/Soroban RPC client, transaction building, contract bindings
 ├── storage/              # PostgreSQL (sqlx) + encrypted object storage integrations
@@ -24,6 +25,7 @@ Backend/
 | --- | --- | --- |
 | `api` | bin | Axum HTTP server exposing the REST endpoints for patients, providers, consent, records, devices, and audit history. |
 | `worker` | bin | Long-running background process that indexes Soroban contract events into Postgres read models. |
+| `config` | lib | Typed `Settings` loaded from env vars / `.env` — see [Configuration & secrets](#configuration--secrets). |
 | `domain` | lib | Core domain types, validation, and business rules, independent of any web framework, database, or chain client. |
 | `soroban` | lib | Stellar/Soroban RPC client wrapper, unsigned transaction/XDR building, and generated contract client bindings. |
 | `storage` | lib | PostgreSQL access (via `sqlx`) and encrypted object storage (S3-compatible/IPFS) for off-chain records. |
