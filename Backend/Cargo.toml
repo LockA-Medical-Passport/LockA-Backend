@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "api",
+    "config",
     "domain",
     "soroban",
     "storage",
@@ -11,3 +12,9 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+
+[workspace.dependencies]
+config = { path = "config" }
+dotenvy = "0.15.7"
+envy = "0.4.2"
+serde = { version = "1.0.229", features = ["derive"] }
