@@ -2,17 +2,16 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 
-const DEFAULT_TICK_INTERVAL_SECS: u64 = 30;
-
 #[tokio::main]
 async fn main() {
     telemetry::init();
 
-    let tick_interval_secs = std::env::var("WORKER_TICK_INTERVAL_SECS")
-        .ok()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(DEFAULT_TICK_INTERVAL_SECS);
+    let settings = config::Settings::load().unwrap_or_else(|err| {
+        tracing::error!(%err, "invalid configuration");
+        std::process::exit(1);
+    });
 
+    let tick_interval_secs = settings.worker_tick_interval_secs;
     tracing::info!(tick_interval_secs, "starting worker");
 
     let mut ticker = interval(Duration::from_secs(tick_interval_secs));

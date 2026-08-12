@@ -8,11 +8,15 @@ use tower_http::trace::TraceLayer;
 use tracing::info_span;
 
 const REQUEST_ID_HEADER: &str = "x-request-id";
-const DEFAULT_BIND_ADDR: &str = "0.0.0.0:8080";
 
 #[tokio::main]
 async fn main() {
     telemetry::init();
+
+    let settings = config::Settings::load().unwrap_or_else(|err| {
+        tracing::error!(%err, "invalid configuration");
+        std::process::exit(1);
+    });
 
     let app = Router::new().route("/healthz", get(health)).layer(
         ServiceBuilder::new()
@@ -24,9 +28,8 @@ async fn main() {
             .propagate_x_request_id(),
     );
 
-    let bind_addr =
-        std::env::var("API_BIND_ADDR").unwrap_or_else(|_| DEFAULT_BIND_ADDR.to_string());
-    let listener = tokio::net::TcpListener::bind(&bind_addr)
+    let bind_addr = &settings.api_bind_addr;
+    let listener = tokio::net::TcpListener::bind(bind_addr)
         .await
         .unwrap_or_else(|err| panic!("failed to bind {bind_addr}: {err}"));
 

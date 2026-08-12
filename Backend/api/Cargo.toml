@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 axum = { workspace = true }
+config = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal"] }
 tower = { workspace = true }
