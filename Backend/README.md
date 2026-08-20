@@ -4,6 +4,12 @@ Rust Cargo workspace for the LockA Backend/API service (Stellar Soroban version)
 
 See [issues.md](issues.md) for the full build breakdown and architecture notes.
 
+## Design documents
+
+| Document | Covers |
+| --- | --- |
+| [docs/schema.md](docs/schema.md) | PostgreSQL schema for core entities — ERD, table definitions, on-chain vs API provenance per column, and the PII minimization review. Reviewed before migrations are written. |
+
 ## Layout
 
 ```text
