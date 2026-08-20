@@ -13,6 +13,12 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+# These crates are the internals of one deployed service, never registry
+# artifacts. Marking them unpublishable blocks an accidental `cargo publish`
+# and is what lets `cargo-deny` skip them when checking license policy (see
+# `[licenses.private]` in deny.toml) — they carry no `license` field precisely
+# because they are not distributed.
+publish = false
 
 [workspace.dependencies]
 axum = "0.8.9"
