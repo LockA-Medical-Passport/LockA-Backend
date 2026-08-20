@@ -1,0 +1,60 @@
+name: Backend Security Audit
+
+# Dependency auditing runs in its own workflow rather than as a job in
+# backend-ci.yml because it has a trigger the build pipeline does not: a weekly
+# cron. A vulnerability is published against a dependency we already have, not
+# by a commit, so waiting for the next PR to find out is the wrong model.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-audit.yml"
+  pull_request:
+    paths:
+      - "Backend/**"
+      - ".github/workflows/backend-audit.yml"
+  schedule:
+    # 06:00 UTC every Monday. Path filters do not apply to scheduled runs, so
+    # this fires regardless of what changed — which is the entire point.
+    - cron: "0 6 * * 1"
+  # Lets a maintainer re-run the audit on demand, e.g. right after publishing
+  # an exception, without pushing an empty commit.
+  workflow_dispatch:
+
+concurrency:
+  group: backend-audit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-deny:
+    name: cargo-deny (${{ matrix.checks }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Report every category of problem in one run instead of stopping at the
+      # first: a PR that trips both a license and an advisory should show both.
+      fail-fast: false
+      matrix:
+        # Split so the failing check is identifiable from the job name alone.
+        # `advisories` is the time-sensitive one (its result can change with no
+        # change to our code); the rest only move when dependencies do.
+        checks:
+          - advisories
+          - bans licenses sources
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: cargo-deny check ${{ matrix.checks }}
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          # Policy and rationale live in Backend/deny.toml, which cargo-deny
+          # picks up from alongside this manifest.
+          manifest-path: Backend/Cargo.toml
+          command: check ${{ matrix.checks }}

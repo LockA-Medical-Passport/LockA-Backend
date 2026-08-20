@@ -1,0 +1,103 @@
+# Dependency policy for the LockA Backend workspace, enforced by `cargo-deny`
+# in CI (see .github/workflows/backend-audit.yml) and runnable locally with:
+#
+#     cd Backend && cargo deny check
+#
+# Four checks run: `advisories` (known vulnerabilities), `licenses` (license
+# policy), `bans` (disallowed or duplicated crates), and `sources` (where code
+# is allowed to come from). See README.md, "Dependency auditing", for how to
+# triage a failure.
+
+[graph]
+# Audit every target the project is actually built for, not just whichever
+# machine happens to run the check: the service ships on Linux (see Dockerfile)
+# while contributors develop on macOS too. A dependency pulled in only for one
+# of those would otherwise go unaudited depending on who ran it.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+# A feature-gated dependency is still a dependency. Enabling every feature
+# here means a plain `cargo deny check` locally sees the same graph CI does,
+# instead of only the default feature set.
+all-features = true
+
+[advisories]
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# Every advisory in the RustSec database is an error by default in this
+# version; there is no severity threshold to configure. Anything we choose to
+# accept has to be listed in `ignore` below with a written reason, which is
+# what makes an exception explicit and reviewable.
+ignore = []
+# A yanked crate is usually yanked for a reason, and it is always actionable
+# (bump the version), so treat it as an error rather than the default warning.
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+# Fail if `ignore` accumulates entries for advisories that no longer apply, so
+# stale exceptions get removed instead of quietly outliving their reason.
+unused-ignored-advisory = "deny"
+
+[licenses]
+# Permissive licenses only. This is a policy statement, not a snapshot of the
+# current tree: a new dependency under a license not listed here should fail
+# CI and get a deliberate decision, rather than being absorbed silently.
+#
+# Copyleft licenses (GPL, LGPL, AGPL, MPL, EUPL, ...) are deliberately absent.
+# LockA ships a hosted service handling medical records; taking on source
+# disclosure or per-file reciprocity obligations is a decision for a human,
+# not a transitive dependency bump.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "BSL-1.0",
+]
+# Default is 0.8. Raised because a low-confidence textual match on a license
+# file is exactly the case we want a human to look at.
+confidence-threshold = 0.93
+# Per-crate escape hatch for a license outside `allow`. Each entry needs a
+# comment saying why it is acceptable here.
+exceptions = []
+# `allow` above is a policy, so it deliberately lists licenses no current
+# dependency uses. Without this, each unused entry is reported as a warning.
+unused-allowed-license = "allow"
+
+[licenses.private]
+# The workspace's own crates (`api`, `config`, ...) declare no `license` field
+# because they are never published to a registry. They are marked
+# `publish = false`, which is what lets cargo-deny skip them here.
+ignore = true
+
+[bans]
+# Duplicate versions of the same crate bloat the binary and mean two copies of
+# any future vulnerability to patch. A warning rather than an error: in a young
+# tree, duplicates usually come from a transitive dependency we do not control,
+# and blocking PRs on someone else's release cadence is not useful.
+multiple-versions = "warn"
+# A `*` version requirement on a registry crate opts out of the lockfile's
+# guarantees about what you actually build.
+wildcards = "deny"
+# ...but the workspace's own crates are path dependencies with no version
+# requirement, which is the normal way to wire up a workspace and carries none
+# of that risk, since the source is right here in the repository.
+allow-wildcard-paths = true
+deny = []
+skip = []
+skip-tree = []
+
+[sources]
+# Everything must come from crates.io. An unexpected registry or a git
+# dependency pinned to a branch is a supply-chain risk and a reproducibility
+# problem, so both are errors until explicitly allowed here.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []
