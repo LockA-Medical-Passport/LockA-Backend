@@ -1,0 +1,29 @@
+# Keep the build context small and reproducible. The Dockerfile copies the
+# whole workspace, so anything not needed by `cargo build` is excluded here —
+# a large context is copied to the daemon on *every* build, and host build
+# artifacts would shadow the ones built inside the image.
+
+# Host build artifacts (a `target/` built on the host is useless in the image
+# and can be gigabytes).
+target/
+**/target/
+
+# Secrets and local environment. Compose injects configuration via
+# `env_file`/`environment` at run time; baking a `.env` into the image would
+# both leak secrets into image layers and silently override those values,
+# because `dotenvy` reads `.env` from the working directory at startup.
+.env
+.env.*
+!.env.example
+
+# Version control and local tooling.
+.git/
+.gitignore
+.githooks/
+.dockerignore
+
+# Not used by the build.
+Dockerfile
+docker-compose.yml
+README.md
+issues.md
