@@ -1,0 +1,102 @@
+# Full local development stack: the API, its PostgreSQL database, and a
+# self-contained Stellar/Soroban network.
+#
+#     cp .env.example .env
+#     docker compose up
+#
+# See the "Local stack (Docker Compose)" section of README.md for details.
+
+# Fixes the project (and so container/volume) names regardless of what the
+# checkout directory is called.
+name: locka-backend
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: locka
+      POSTGRES_PASSWORD: locka
+      POSTGRES_DB: locka
+    ports:
+      # Published so host tooling (psql, migrations, an IDE) can reach the same
+      # database the API container uses. Override POSTGRES_PORT in `.env` if
+      # you already run Postgres on 5432 — only the host side moves, so the
+      # API container is unaffected.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Postgres briefly accepts connections during init before the database is
+      # actually ready, so gate dependents on `pg_isready`, not just the port.
+      test: ["CMD-SHELL", "pg_isready --username=locka --dbname=locka"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  stellar:
+    # Official all-in-one image: Stellar Core, Horizon, Stellar RPC (formerly
+    # Soroban RPC), and friendbot. `--local` runs a standalone network that
+    # closes a ledger every second; `--enable rpc` adds the RPC service the
+    # backend talks to (and implies Horizon and friendbot).
+    image: stellar/quickstart:latest
+    command: ["--local", "--enable", "rpc"]
+    ports:
+      # Everything is routed behind one port: Horizon at /, RPC at /rpc,
+      # friendbot at /friendbot.
+      - "${STELLAR_PORT:-8000}:8000"
+    volumes:
+      - stellar-data:/opt/stellar
+    healthcheck:
+      # The RPC service answers before it has caught up with core, and reports
+      # that as a JSON-RPC result rather than an HTTP error — so check the
+      # reported status, not just that the request succeeded.
+      test:
+        - CMD-SHELL
+        - >-
+          curl --silent --fail --request POST
+          --header 'Content-Type: application/json'
+          --data '{"jsonrpc":"2.0","id":1,"method":"getHealth"}'
+          http://localhost:8000/rpc | grep -q '"status":"healthy"'
+      interval: 5s
+      timeout: 5s
+      # Generous: a cold start has to build genesis and let core come up.
+      retries: 30
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      # Secrets and any local overrides. Marked optional so `docker compose
+      # build`/`config` and the `postgres`/`stellar` services still work in a
+      # fresh clone; if it's missing, the API itself fails fast naming the
+      # variable it needs, which is a clearer error than compose refusing to
+      # read the file.
+      - path: .env
+        required: false
+    environment:
+      # Set here rather than left to `.env` because these describe the compose
+      # network, not the developer's machine: the `.env.example` values point
+      # at localhost for a host-native `cargo run`, which inside a container
+      # would resolve to the container itself. `environment` takes precedence
+      # over `env_file`, so these win over whatever `.env` says.
+      DATABASE_URL: postgres://locka:locka@postgres:5432/locka
+      SOROBAN_RPC_URL: http://stellar:8000/rpc
+      # Must match the network `stellar` is running; this is the fixed
+      # passphrase for a quickstart `--local` standalone network.
+      STELLAR_NETWORK_PASSPHRASE: "Standalone Network ; February 2017"
+      # Pinned so a stray `API_BIND_ADDR=127.0.0.1:...` in `.env` can't make
+      # the server unreachable from the published port.
+      API_BIND_ADDR: 0.0.0.0:8080
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stellar:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  stellar-data:
