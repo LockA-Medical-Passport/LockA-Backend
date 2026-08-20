@@ -4,12 +4,19 @@ Rust Cargo workspace for the LockA Backend/API service (Stellar Soroban version)
 
 See [issues.md](issues.md) for the full build breakdown and architecture notes.
 
+## Design documents
+
+| Document | Covers |
+| --- | --- |
+| [docs/schema.md](docs/schema.md) | PostgreSQL schema for core entities — ERD, table definitions, on-chain vs API provenance per column, and the PII minimization review. Reviewed before migrations are written. |
+
 ## Layout
 
 ```text
 Backend/
 ├── Cargo.toml            # workspace manifest (members + shared package metadata)
 ├── rust-toolchain.toml   # pinned Rust toolchain (rustup will auto-install this version)
+├── docs/                 # design documents reviewed before implementation
 ├── api/                  # HTTP service binary — Axum-based REST API entrypoint
 ├── worker/               # background binary — Soroban contract event indexer / async jobs
 ├── config/               # typed configuration layer (env vars + .env, fail-fast)
