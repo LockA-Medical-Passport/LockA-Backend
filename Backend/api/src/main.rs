@@ -18,6 +18,15 @@ async fn main() {
         std::process::exit(1);
     });
 
+    // Connects, applies any pending migrations, and health-checks the
+    // database before this process accepts any traffic. Held for the
+    // process's lifetime (not yet passed into the router as state — no
+    // handler needs it until the repository layer lands in issue #10).
+    let _pool = storage::connect(&settings).await.unwrap_or_else(|err| {
+        tracing::error!(%err, "database unavailable");
+        std::process::exit(1);
+    });
+
     let app = Router::new().route("/healthz", get(health)).layer(
         ServiceBuilder::new()
             // Assign a request id before the request reaches `TraceLayer`, so

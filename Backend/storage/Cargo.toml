@@ -5,4 +5,17 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+config = { workspace = true }
+sqlx = { workspace = true, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "macros",
+    "migrate",
+    "uuid",
+    "time",
+] }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -6,6 +6,7 @@ publish.workspace = true
 
 [dependencies]
 config = { workspace = true }
+storage = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "time"] }
 tracing = { workspace = true }

@@ -134,6 +134,55 @@ cd Backend
 cargo build
 ```
 
+`cargo build` needs a reachable, migrated PostgreSQL database (`DATABASE_URL`): `sqlx`'s
+`query!`/`query_as!` macros connect to it at compile time to type-check queries against the
+real schema. `docker compose up -d postgres` gets you one; see
+[Database migrations & connection pooling](#database-migrations--connection-pooling) below.
+
+## Database migrations & connection pooling
+
+Migrations live in [`storage/migrations/`](storage/migrations/) as reversible up/down `.sql`
+pairs, applied via [`sqlx`](https://github.com/launchbadge/sqlx). They're a direct
+transcription of [`docs/schema.md`](docs/schema.md) — that document is the source of truth for
+*why* the schema looks the way it does; a migration diverging from it without a stated reason
+is a bug, not a design choice made in passing.
+
+Both `api` and `worker` connect and apply any pending migrations at startup
+(`storage::connect`), before doing anything else — the service fails fast and exits if it
+can't reach or migrate the database, the same way it already fails fast on invalid
+configuration. Calling this from both binaries is safe even if they start concurrently:
+`sqlx`'s migrator takes a Postgres advisory lock while applying migrations, so one binary
+waits for the other rather than racing it.
+
+Pool size is `DATABASE_MAX_CONNECTIONS` (see `.env.example`), defaulting to 10.
+
+### Authoring a migration
+
+```sh
+cargo install sqlx-cli --locked --no-default-features --features postgres,rustls   # once
+cd Backend
+sqlx migrate add -r <name>       # creates a new <ts>_<name>.up.sql / .down.sql pair
+sqlx migrate run                 # apply pending migrations to $DATABASE_URL
+sqlx migrate revert               # roll back the most recent migration
+```
+
+### The `.sqlx` offline query cache
+
+`docker build` has no database to check queries against — there's nothing running inside the
+build container. To make that work, `Backend/.sqlx/` holds a pre-generated cache of every
+`query!`/`query_as!` macro's expected shape, and the `Dockerfile`'s builder stage sets
+`SQLX_OFFLINE=true` to use it instead of connecting live. **Whenever a query changes,
+regenerate and commit it:**
+
+```sh
+cargo sqlx prepare --workspace
+git add .sqlx
+```
+
+CI verifies the checked-in cache is current (`cargo sqlx prepare --check`) against the live
+database it migrates for every other step, so a forgotten regeneration fails the PR instead of
+silently shipping a stale cache in the image.
+
 ## Formatting & linting
 
 Style is defined in `rustfmt.toml`; lint thresholds (complexity, arity, MSRV) are defined in

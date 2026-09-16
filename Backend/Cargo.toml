@@ -26,10 +26,17 @@ config = { path = "config" }
 dotenvy = "0.15.7"
 envy = "0.4.2"
 serde = { version = "1.0.229", features = ["derive"] }
+# Pinned to the 0.8 line deliberately: sqlx 0.9 raised its MSRV above the
+# toolchain pinned in rust-toolchain.toml and moved combined runtime+TLS
+# features around. Revisit alongside a toolchain bump, not incidentally.
+sqlx = { version = "0.8", default-features = false }
+storage = { path = "storage" }
 telemetry = { path = "telemetry" }
+time = "0.3.44"
 tokio = "1.53.1"
 tower = "0.5.3"
 tower-http = "0.7.0"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
+uuid = "1.26.1"

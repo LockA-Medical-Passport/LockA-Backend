@@ -11,6 +11,14 @@ async fn main() {
         std::process::exit(1);
     });
 
+    // See api/src/main.rs for why both binaries independently connect and
+    // migrate here: it's safe (the migrator advisory-locks) and each binary
+    // needs its own pool regardless.
+    let _pool = storage::connect(&settings).await.unwrap_or_else(|err| {
+        tracing::error!(%err, "database unavailable");
+        std::process::exit(1);
+    });
+
     let tick_interval_secs = settings.worker_tick_interval_secs;
     tracing::info!(tick_interval_secs, "starting worker");
 

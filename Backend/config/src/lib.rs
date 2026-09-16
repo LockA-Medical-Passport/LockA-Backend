@@ -22,6 +22,10 @@ fn default_worker_tick_interval_secs() -> u64 {
     30
 }
 
+fn default_database_max_connections() -> u32 {
+    10
+}
+
 /// Typed application configuration, sourced from environment variables.
 ///
 /// See `Backend/.env.example` for the full list of variables, defaults,
@@ -30,6 +34,9 @@ fn default_worker_tick_interval_secs() -> u64 {
 pub struct Settings {
     /// PostgreSQL connection string.
     pub database_url: String,
+    /// Maximum number of connections the pool opens to PostgreSQL.
+    #[serde(default = "default_database_max_connections")]
+    pub database_max_connections: u32,
     /// Soroban RPC endpoint (e.g. `https://soroban-testnet.stellar.org`).
     pub soroban_rpc_url: String,
     /// Stellar network passphrase the service operates against.
@@ -60,6 +67,7 @@ impl std::fmt::Debug for Settings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Settings")
             .field("database_url", &REDACTED)
+            .field("database_max_connections", &self.database_max_connections)
             .field("soroban_rpc_url", &self.soroban_rpc_url)
             .field("stellar_network_passphrase", &self.stellar_network_passphrase)
             .field("object_storage_endpoint", &self.object_storage_endpoint)
@@ -149,6 +157,7 @@ mod tests {
         let settings = from_iter(base_vars()).expect("should load with all required vars set");
 
         assert_eq!(settings.database_url, "postgres://user:pass@localhost/locka");
+        assert_eq!(settings.database_max_connections, 10);
         assert_eq!(settings.api_bind_addr, "0.0.0.0:8080");
         assert_eq!(settings.worker_tick_interval_secs, 30);
     }
@@ -158,11 +167,13 @@ mod tests {
         let mut vars = base_vars();
         vars.push(("API_BIND_ADDR".into(), "127.0.0.1:9000".into()));
         vars.push(("WORKER_TICK_INTERVAL_SECS".into(), "5".into()));
+        vars.push(("DATABASE_MAX_CONNECTIONS".into(), "25".into()));
 
         let settings = from_iter(vars).expect("should load");
 
         assert_eq!(settings.api_bind_addr, "127.0.0.1:9000");
         assert_eq!(settings.worker_tick_interval_secs, 5);
+        assert_eq!(settings.database_max_connections, 25);
     }
 
     #[test]
