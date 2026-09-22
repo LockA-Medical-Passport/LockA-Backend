@@ -59,6 +59,10 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "BSL-1.0",
+    # Mozilla root-certificate data shipped by webpki-roots/webpki-root-certs
+    # (Postgres/RPC TLS). CDLA-Permissive-2.0 permits redistribution with
+    # its license notice; it imposes no source-disclosure requirement.
+    "CDLA-Permissive-2.0",
 ]
 # Default is 0.8. Raised because a low-confidence textual match on a license
 # file is exactly the case we want a human to look at.

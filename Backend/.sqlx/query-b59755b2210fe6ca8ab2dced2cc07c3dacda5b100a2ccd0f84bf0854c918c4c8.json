@@ -1,0 +1,152 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, chain_request_id, patient_id, provider_id, requested_by_staff_id,\n                record_category AS \"record_category: RecordCategory\",\n                purpose_code AS \"purpose_code: PurposeCode\",\n                requested_duration_secs, status AS \"status: AccessRequestStatus\",\n                requested_ledger, requested_at, resolved_ledger, resolved_at\n            FROM access_requests\n            WHERE patient_id = $1\n              AND ($2::access_request_status IS NULL OR status = $2)\n            ORDER BY requested_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_request_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "requested_by_staff_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "purpose_code: PurposeCode",
+        "type_info": {
+          "Custom": {
+            "name": "purpose_code",
+            "kind": {
+              "Enum": [
+                "treatment",
+                "emergency",
+                "referral",
+                "laboratory_processing",
+                "prescription_fulfilment",
+                "insurance_claim",
+                "public_health_reporting"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "requested_duration_secs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "status: AccessRequestStatus",
+        "type_info": {
+          "Custom": {
+            "name": "access_request_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "withdrawn"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "requested_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 10,
+        "name": "requested_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "resolved_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "resolved_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "access_request_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "withdrawn"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "b59755b2210fe6ca8ab2dced2cc07c3dacda5b100a2ccd0f84bf0854c918c4c8"
+}

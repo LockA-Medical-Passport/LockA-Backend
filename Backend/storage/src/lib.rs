@@ -8,8 +8,24 @@
 //! for every span, so instrumenting a function is all that's needed to
 //! make its latency observable — no manual timing code.
 
+mod auth;
+pub use auth::PgChallengeRepository;
+
+mod consent;
+mod device;
+mod error;
+mod patient;
+mod provider;
+mod record;
+
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
+
+pub use consent::PgConsentRepository;
+pub use device::PgDeviceRepository;
+pub use patient::PgPatientRepository;
+pub use provider::{PgProviderRepository, PgProviderStaffRepository};
+pub use record::PgRecordIndexRepository;
 
 /// Embedded migrations from `storage/migrations/`, applied by [`connect`].
 ///
@@ -35,21 +51,30 @@ static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 /// to apply, or the post-migration health check fails. Callers should treat
 /// any error here as fatal: log it and exit, the same way a
 /// [`config::ConfigError`] is already handled.
+#[tracing::instrument(skip_all)]
 pub async fn connect(settings: &config::Settings) -> Result<PgPool, DbError> {
+    if settings.database_max_connections == 0 || settings.database_timeout_secs == 0 {
+        return Err(DbError::InvalidPoolConfiguration);
+    }
+    let timeout = std::time::Duration::from_secs(settings.database_timeout_secs);
     let pool = PgPoolOptions::new()
+        .acquire_timeout(timeout)
         .max_connections(settings.database_max_connections)
         .connect(&settings.database_url)
         .await
         .map_err(DbError::Connect)?;
 
-    MIGRATOR.run(&pool).await.map_err(DbError::Migrate)?;
+    tokio::time::timeout(timeout, MIGRATOR.run(&pool))
+        .await
+        .map_err(|_| DbError::StartupTimeout)?
+        .map_err(DbError::Migrate)?;
 
     // Deliberately schema-independent (touches no table), so it verifies the
     // pool can actually run a query post-migration without assuming any
     // particular table exists yet.
-    sqlx::query!(r#"SELECT 1 AS "one!: i32""#)
-        .fetch_one(&pool)
+    tokio::time::timeout(timeout, sqlx::query!(r#"SELECT 1 AS "one!: i32""#).fetch_one(&pool))
         .await
+        .map_err(|_| DbError::StartupTimeout)?
         .map_err(DbError::HealthCheck)?;
 
     Ok(pool)
@@ -59,6 +84,8 @@ pub async fn connect(settings: &config::Settings) -> Result<PgPool, DbError> {
 /// migrations, or the post-migration health check failed.
 #[derive(Debug)]
 pub enum DbError {
+    InvalidPoolConfiguration,
+    StartupTimeout,
     Connect(sqlx::Error),
     Migrate(sqlx::migrate::MigrateError),
     HealthCheck(sqlx::Error),
@@ -67,6 +94,10 @@ pub enum DbError {
 impl std::fmt::Display for DbError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            DbError::InvalidPoolConfiguration => {
+                write!(f, "database pool size and timeout must be positive")
+            }
+            DbError::StartupTimeout => write!(f, "database startup deadline exceeded"),
             DbError::Connect(err) => write!(f, "failed to connect to the database: {err}"),
             DbError::Migrate(err) => write!(f, "failed to apply database migrations: {err}"),
             DbError::HealthCheck(err) => write!(f, "database health check failed: {err}"),
@@ -85,6 +116,7 @@ mod tests {
     #[sqlx::test]
     async fn migrations_apply_cleanly_and_create_the_expected_tables(pool: sqlx::PgPool) {
         let expected_tables = [
+            "auth_challenges",
             "patients",
             "providers",
             "provider_staff",
@@ -124,5 +156,39 @@ mod tests {
 
             assert!(exists, "expected migration to create enum type `{enum_name}`");
         }
+    }
+    fn settings(database_url: String) -> config::Settings {
+        serde_json::from_value(serde_json::json!({
+            "database_url": database_url, "database_timeout_secs": 1, "database_max_connections": 2,
+            "soroban_rpc_url": "unused", "stellar_network_passphrase": "unused",
+            "object_storage_endpoint": "unused", "object_storage_bucket": "unused",
+            "object_storage_access_key_id": "unused", "object_storage_secret_access_key": "unused",
+            "jwt_signing_key": "unused", "sep10_signing_seed": "unused",
+            "sep10_home_domain": "unused", "sep10_web_auth_domain": "unused", "sep10_web_auth_endpoint": "unused"
+        })).unwrap()
+    }
+
+    #[tokio::test]
+    async fn unreachable_database_fails_within_configured_deadline() {
+        let config = settings("postgres://invalid:invalid@127.0.0.1:1/unreachable".into());
+        let result =
+            tokio::time::timeout(std::time::Duration::from_secs(3), super::connect(&config)).await;
+        assert!(matches!(result, Ok(Err(super::DbError::Connect(_)))));
+    }
+
+    #[sqlx::test]
+    async fn startup_pool_uses_configuration_and_rejects_changed_migration(pool: sqlx::PgPool) {
+        use sqlx::ConnectOptions;
+        let config = settings(pool.connect_options().to_url_lossy().to_string());
+        let connected = super::connect(&config).await.unwrap();
+        assert_eq!(connected.options().get_max_connections(), 2);
+        connected.close().await;
+        // Simulate a deployed database with a changed applied migration.
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = $1")
+            .bind(vec![0u8; 48])
+            .execute(&pool)
+            .await
+            .unwrap();
+        assert!(matches!(super::connect(&config).await, Err(super::DbError::Migrate(_))));
     }
 }

@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO patients (\n                id, stellar_account_id, passport_id, identity_commitment,\n                recovery_config_hash, status, registered_ledger, registered_at, updated_ledger\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            ON CONFLICT (stellar_account_id) DO UPDATE SET\n                identity_commitment = EXCLUDED.identity_commitment,\n                recovery_config_hash = EXCLUDED.recovery_config_hash,\n                status = EXCLUDED.status,\n                updated_ledger = EXCLUDED.updated_ledger\n            WHERE EXCLUDED.updated_ledger > patients.updated_ledger\n            RETURNING\n                id, stellar_account_id, passport_id, identity_commitment,\n                recovery_config_hash, status AS \"status: PatientStatus\",\n                registered_ledger, registered_at, updated_ledger, first_indexed_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "stellar_account_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "passport_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "identity_commitment",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "recovery_config_hash",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 5,
+        "name": "status: PatientStatus",
+        "type_info": {
+          "Custom": {
+            "name": "patient_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "suspended",
+                "recovering"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "registered_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "registered_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "first_indexed_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Bytea",
+        "Bytea",
+        {
+          "Custom": {
+            "name": "patient_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "suspended",
+                "recovering"
+              ]
+            }
+          }
+        },
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b34598f2df972182ee5bfc664bacbbd9f2f8c3143897162206686a28bbbda69a"
+}

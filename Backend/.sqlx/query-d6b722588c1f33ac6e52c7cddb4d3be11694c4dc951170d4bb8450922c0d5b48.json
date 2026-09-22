@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth_challenges SET consumed_at = now() WHERE transaction_hash = $1 AND stellar_account_id = $2 AND consumed_at IS NULL AND expires_at > now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Bytea",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d6b722588c1f33ac6e52c7cddb4d3be11694c4dc951170d4bb8450922c0d5b48"
+}

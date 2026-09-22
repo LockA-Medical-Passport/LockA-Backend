@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, device_registration_id, patient_id, record_index_id, recorded_at,\n                ingested_at, signature_verified, ciphertext_sha256,\n                storage_backend AS \"storage_backend: StorageBackend\",\n                storage_uri, encrypted_data_key, key_encryption_key_id\n            FROM device_readings_index\n            WHERE patient_id = $1\n            ORDER BY recorded_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "device_registration_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "record_index_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "recorded_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "ingested_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "signature_verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "ciphertext_sha256",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 8,
+        "name": "storage_backend: StorageBackend",
+        "type_info": {
+          "Custom": {
+            "name": "storage_backend",
+            "kind": {
+              "Enum": [
+                "s3",
+                "ipfs"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "storage_uri",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "encrypted_data_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 11,
+        "name": "key_encryption_key_id",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d50a5d70647bda9cc986621be92a4bd2abfb1318a2b88464e41f0102d14ddf6d"
+}

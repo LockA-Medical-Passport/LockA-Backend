@@ -1,13 +1,6 @@
-use axum::Router;
-use axum::extract::Request;
-use axum::routing::get;
-use tower::ServiceBuilder;
-use tower_http::ServiceBuilderExt;
-use tower_http::request_id::MakeRequestUuid;
-use tower_http::trace::TraceLayer;
-use tracing::info_span;
-
-const REQUEST_ID_HEADER: &str = "x-request-id";
+use domain::ChallengeRepository;
+use soroban::SorobanRpc;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -18,24 +11,27 @@ async fn main() {
         std::process::exit(1);
     });
 
-    // Connects, applies any pending migrations, and health-checks the
-    // database before this process accepts any traffic. Held for the
-    // process's lifetime (not yet passed into the router as state — no
-    // handler needs it until the repository layer lands in issue #10).
-    let _pool = storage::connect(&settings).await.unwrap_or_else(|err| {
+    // Migrate and health-check before accepting traffic.
+    let pool = storage::connect(&settings).await.unwrap_or_else(|err| {
         tracing::error!(%err, "database unavailable");
         std::process::exit(1);
     });
 
-    let app = Router::new().route("/healthz", get(health)).layer(
-        ServiceBuilder::new()
-            // Assign a request id before the request reaches `TraceLayer`, so
-            // it can be attached to the request's tracing span.
-            .set_x_request_id(MakeRequestUuid)
-            .layer(TraceLayer::new_for_http().make_span_with(request_span))
-            // Echo the request id back on the response before it leaves `TraceLayer`.
-            .propagate_x_request_id(),
-    );
+    let rpc = Arc::new(soroban::SorobanRpcClient::from_settings(&settings).unwrap_or_else(|err| {
+        tracing::error!(%err, "invalid RPC configuration");
+        std::process::exit(1);
+    }));
+    rpc.get_network().await.unwrap_or_else(|err| {
+        tracing::error!(%err, "Stellar network unavailable or mismatched");
+        std::process::exit(1);
+    });
+    let challenges = Arc::new(storage::PgChallengeRepository::new(pool));
+    let state =
+        api::auth::AuthState::new(&settings, rpc, challenges.clone()).unwrap_or_else(|err| {
+            tracing::error!(%err, "invalid authentication configuration");
+            std::process::exit(1);
+        });
+    let app = api::router(Arc::new(state));
 
     let bind_addr = &settings.api_bind_addr;
     let listener = tokio::net::TcpListener::bind(bind_addr)
@@ -44,29 +40,20 @@ async fn main() {
 
     tracing::info!(addr = %bind_addr, "starting API server");
 
+    let cleanup = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            if let Err(err) = challenges.delete_expired().await {
+                tracing::error!(%err, "expired challenge cleanup failed");
+            }
+        }
+    });
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("API server failed");
-}
-
-fn request_span(request: &Request) -> tracing::Span {
-    let request_id = request
-        .headers()
-        .get(REQUEST_ID_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("unknown");
-
-    info_span!(
-        "http_request",
-        method = %request.method(),
-        path = %request.uri().path(),
-        request_id = %request_id,
-    )
-}
-
-async fn health() -> &'static str {
-    "ok"
+    cleanup.abort();
 }
 
 async fn shutdown_signal() {

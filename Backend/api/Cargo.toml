@@ -9,7 +9,20 @@ axum = { workspace = true }
 config = { workspace = true }
 storage = { workspace = true }
 telemetry = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "signal", "time"] }
 tower = { workspace = true }
-tower-http = { workspace = true, features = ["trace", "request-id", "util"] }
+tower-http = { workspace = true, features = ["trace", "request-id", "util", "cors", "set-header"] }
 tracing = { workspace = true }
+
+domain.workspace = true
+soroban.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+jsonwebtoken.workspace = true
+time.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+ed25519-dalek.workspace = true
+stellar-strkey.workspace = true
+tower = { workspace = true, features = ["util"] }

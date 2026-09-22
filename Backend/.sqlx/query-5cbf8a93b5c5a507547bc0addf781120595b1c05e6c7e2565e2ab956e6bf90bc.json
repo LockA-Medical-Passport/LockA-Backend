@@ -1,0 +1,149 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, patient_id, ciphertext_sha256,\n                record_category AS \"record_category: RecordCategory\",\n                issuer_provider_id, issued_by_staff_id,\n                storage_backend AS \"storage_backend: StorageBackend\",\n                storage_uri, ciphertext_size_bytes, encrypted_data_key, key_encryption_key_id,\n                anchored_ledger, anchored_at, superseded_by_id, created_at\n            FROM record_index\n            WHERE patient_id = $1\n              AND ($2::record_category IS NULL OR record_category = $2)\n            ORDER BY created_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "ciphertext_sha256",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "issuer_provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "issued_by_staff_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "storage_backend: StorageBackend",
+        "type_info": {
+          "Custom": {
+            "name": "storage_backend",
+            "kind": {
+              "Enum": [
+                "s3",
+                "ipfs"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "storage_uri",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "ciphertext_size_bytes",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "encrypted_data_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 10,
+        "name": "key_encryption_key_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "anchored_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "anchored_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "superseded_by_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "5cbf8a93b5c5a507547bc0addf781120595b1c05e6c7e2565e2ab956e6bf90bc"
+}

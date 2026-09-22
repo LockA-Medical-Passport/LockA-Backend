@@ -29,6 +29,11 @@ ENV RUSTUP_TOOLCHAIN=1.93.1
 # cache is generated and kept in sync.
 ENV SQLX_OFFLINE=true
 
+# AWS-LC (JWT crypto provider) builds its native library from source.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes build-essential cmake perl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY . .

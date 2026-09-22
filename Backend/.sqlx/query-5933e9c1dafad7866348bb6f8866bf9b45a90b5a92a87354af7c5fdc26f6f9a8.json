@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO consent_grants (\n                id, chain_grant_id, access_request_id, patient_id, provider_id,\n                record_category, granted_ledger, granted_at, expires_at,\n                revoked_at, revoked_ledger\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n            ON CONFLICT (chain_grant_id) DO UPDATE SET\n                revoked_at = CASE\n                    WHEN EXCLUDED.revoked_ledger IS NULL THEN consent_grants.revoked_at\n                    WHEN EXCLUDED.revoked_ledger > COALESCE(consent_grants.revoked_ledger, -1)\n                        THEN EXCLUDED.revoked_at\n                    ELSE consent_grants.revoked_at\n                END,\n                revoked_ledger = CASE\n                    WHEN EXCLUDED.revoked_ledger IS NULL THEN consent_grants.revoked_ledger\n                    WHEN EXCLUDED.revoked_ledger > COALESCE(consent_grants.revoked_ledger, -1)\n                        THEN EXCLUDED.revoked_ledger\n                    ELSE consent_grants.revoked_ledger\n                END\n            RETURNING\n                id, chain_grant_id, access_request_id, patient_id, provider_id,\n                record_category AS \"record_category: RecordCategory\",\n                granted_ledger, granted_at, expires_at, revoked_at, revoked_ledger\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_grant_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "access_request_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "granted_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "granted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "revoked_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "revoked_ledger",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        },
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "5933e9c1dafad7866348bb6f8866bf9b45a90b5a92a87354af7c5fdc26f6f9a8"
+}

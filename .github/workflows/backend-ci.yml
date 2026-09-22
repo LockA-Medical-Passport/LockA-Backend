@@ -65,10 +65,12 @@ jobs:
         id: cache-sqlx-cli
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/sqlx
+          path: |
+            ~/.cargo/bin/sqlx
+            ~/.cargo/bin/cargo-sqlx
           # Pinned to the same 0.8.x line as the `sqlx` library dependency —
           # the CLI and the library must agree on the migration file format.
-          key: sqlx-cli-0.8.6-${{ runner.os }}
+          key: sqlx-cli-0.8.6-both-binaries-${{ runner.os }}
 
       - name: Install sqlx-cli
         if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
@@ -94,7 +96,25 @@ jobs:
         run: cargo fmt --check
 
       - name: cargo clippy -- -D warnings
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
-      - name: cargo test
-        run: cargo test --workspace
+      - name: Install coverage tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.6.24
+
+      - name: Install LLVM tools
+        run: rustup component add llvm-tools-preview
+
+      - name: cargo test with coverage
+        run: |
+          mkdir -p target/coverage
+          cargo llvm-cov --workspace --all-targets --locked --lcov --output-path target/coverage/lcov.info --fail-under-lines 60
+
+      - name: Publish coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend/target/coverage/lcov.info
+          if-no-files-found: warn

@@ -1,0 +1,116 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, chain_grant_id, access_request_id, patient_id, provider_id,\n                record_category AS \"record_category: RecordCategory\",\n                granted_ledger, granted_at, expires_at, revoked_at, revoked_ledger\n            FROM consent_grants\n            WHERE patient_id = $1\n              AND provider_id = $2\n              AND record_category = $3\n              AND revoked_at IS NULL\n              AND expires_at > now()\n            ORDER BY granted_at DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_grant_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "access_request_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "granted_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "granted_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "revoked_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "revoked_ledger",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "77ee80b34f324d36873b212057d9da7e44d3947f80a0b49c56e1f01ac85e3fcd"
+}

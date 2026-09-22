@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO provider_staff (\n                id, provider_id, stellar_account_id, role, status, authorized_ledger, removed_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7)\n            ON CONFLICT (provider_id, stellar_account_id) DO UPDATE SET\n                role = EXCLUDED.role,\n                status = EXCLUDED.status,\n                authorized_ledger = EXCLUDED.authorized_ledger,\n                removed_at = EXCLUDED.removed_at\n            WHERE EXCLUDED.authorized_ledger > provider_staff.authorized_ledger\n            RETURNING\n                id, provider_id, stellar_account_id,\n                role AS \"role: StaffRole\", status AS \"status: StaffStatus\",\n                authorized_ledger, removed_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "stellar_account_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "role: StaffRole",
+        "type_info": {
+          "Custom": {
+            "name": "staff_role",
+            "kind": {
+              "Enum": [
+                "admin",
+                "clinician",
+                "technician"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status: StaffStatus",
+        "type_info": {
+          "Custom": {
+            "name": "staff_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "removed"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "authorized_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "removed_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        {
+          "Custom": {
+            "name": "staff_role",
+            "kind": {
+              "Enum": [
+                "admin",
+                "clinician",
+                "technician"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "staff_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "removed"
+              ]
+            }
+          }
+        },
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "088c5a1e6149e94b84e0e24c76357be5b0beeea7ca06a036c9f320fd6ba9bb0a"
+}
