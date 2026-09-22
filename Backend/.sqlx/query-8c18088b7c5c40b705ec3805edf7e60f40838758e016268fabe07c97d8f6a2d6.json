@@ -1,0 +1,151 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO providers (\n                id, stellar_account_id, chain_provider_id, provider_type, verification_status,\n                legal_name, display_name, country_code, contact_email, registered_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n            RETURNING\n                id, stellar_account_id, chain_provider_id,\n                provider_type AS \"provider_type: ProviderType\",\n                verification_status AS \"verification_status: VerificationStatus\",\n                verified_ledger, legal_name, display_name, country_code, contact_email, registered_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "stellar_account_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "chain_provider_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "provider_type: ProviderType",
+        "type_info": {
+          "Custom": {
+            "name": "provider_type",
+            "kind": {
+              "Enum": [
+                "hospital",
+                "clinic",
+                "laboratory",
+                "pharmacy",
+                "insurer"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "verification_status: VerificationStatus",
+        "type_info": {
+          "Custom": {
+            "name": "verification_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "verified",
+                "suspended",
+                "revoked"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "verified_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "legal_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "display_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "country_code",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "contact_email",
+        "type_info": {
+          "Custom": {
+            "name": "citext",
+            "kind": "Simple"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "registered_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        {
+          "Custom": {
+            "name": "provider_type",
+            "kind": {
+              "Enum": [
+                "hospital",
+                "clinic",
+                "laboratory",
+                "pharmacy",
+                "insurer"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "verification_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "verified",
+                "suspended",
+                "revoked"
+              ]
+            }
+          }
+        },
+        "Text",
+        "Text",
+        "Bpchar",
+        {
+          "Custom": {
+            "name": "citext",
+            "kind": "Simple"
+          }
+        },
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "8c18088b7c5c40b705ec3805edf7e60f40838758e016268fabe07c97d8f6a2d6"
+}

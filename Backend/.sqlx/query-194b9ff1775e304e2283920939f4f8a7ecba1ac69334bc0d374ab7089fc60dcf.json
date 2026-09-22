@@ -1,0 +1,194 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO access_requests (\n                id, chain_request_id, patient_id, provider_id, requested_by_staff_id,\n                record_category, purpose_code, requested_duration_secs, status,\n                requested_ledger, requested_at, resolved_ledger, resolved_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n            ON CONFLICT (chain_request_id) DO UPDATE SET\n                status = CASE\n                    WHEN EXCLUDED.resolved_ledger IS NULL THEN access_requests.status\n                    WHEN EXCLUDED.resolved_ledger > COALESCE(access_requests.resolved_ledger, -1)\n                        THEN EXCLUDED.status\n                    ELSE access_requests.status\n                END,\n                resolved_ledger = CASE\n                    WHEN EXCLUDED.resolved_ledger IS NULL THEN access_requests.resolved_ledger\n                    WHEN EXCLUDED.resolved_ledger > COALESCE(access_requests.resolved_ledger, -1)\n                        THEN EXCLUDED.resolved_ledger\n                    ELSE access_requests.resolved_ledger\n                END,\n                resolved_at = CASE\n                    WHEN EXCLUDED.resolved_ledger IS NULL THEN access_requests.resolved_at\n                    WHEN EXCLUDED.resolved_ledger > COALESCE(access_requests.resolved_ledger, -1)\n                        THEN EXCLUDED.resolved_at\n                    ELSE access_requests.resolved_at\n                END\n            RETURNING\n                id, chain_request_id, patient_id, provider_id, requested_by_staff_id,\n                record_category AS \"record_category: RecordCategory\",\n                purpose_code AS \"purpose_code: PurposeCode\",\n                requested_duration_secs, status AS \"status: AccessRequestStatus\",\n                requested_ledger, requested_at, resolved_ledger, resolved_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_request_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "requested_by_staff_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "purpose_code: PurposeCode",
+        "type_info": {
+          "Custom": {
+            "name": "purpose_code",
+            "kind": {
+              "Enum": [
+                "treatment",
+                "emergency",
+                "referral",
+                "laboratory_processing",
+                "prescription_fulfilment",
+                "insurance_claim",
+                "public_health_reporting"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "requested_duration_secs",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "status: AccessRequestStatus",
+        "type_info": {
+          "Custom": {
+            "name": "access_request_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "withdrawn"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "requested_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 10,
+        "name": "requested_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "resolved_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "resolved_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "purpose_code",
+            "kind": {
+              "Enum": [
+                "treatment",
+                "emergency",
+                "referral",
+                "laboratory_processing",
+                "prescription_fulfilment",
+                "insurance_claim",
+                "public_health_reporting"
+              ]
+            }
+          }
+        },
+        "Int4",
+        {
+          "Custom": {
+            "name": "access_request_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "approved",
+                "rejected",
+                "expired",
+                "withdrawn"
+              ]
+            }
+          }
+        },
+        "Int8",
+        "Timestamptz",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "194b9ff1775e304e2283920939f4f8a7ecba1ac69334bc0d374ab7089fc60dcf"
+}

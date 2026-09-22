@@ -1,3 +1,5 @@
+use domain::ChallengeRepository;
+use soroban::SorobanRpc;
 use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
@@ -11,6 +13,23 @@ async fn main() {
         std::process::exit(1);
     });
 
+    // See api/src/main.rs for why both binaries independently connect and
+    // migrate here: it's safe (the migrator advisory-locks) and each binary
+    // needs its own pool regardless.
+    let pool = storage::connect(&settings).await.unwrap_or_else(|err| {
+        tracing::error!(%err, "database unavailable");
+        std::process::exit(1);
+    });
+
+    let challenges = storage::PgChallengeRepository::new(pool);
+    let rpc = soroban::SorobanRpcClient::from_settings(&settings).unwrap_or_else(|err| {
+        tracing::error!(%err, "invalid RPC configuration");
+        std::process::exit(1);
+    });
+    rpc.get_network().await.unwrap_or_else(|err| {
+        tracing::error!(%err, "Stellar network unavailable or mismatched");
+        std::process::exit(1);
+    });
     let tick_interval_secs = settings.worker_tick_interval_secs;
     tracing::info!(tick_interval_secs, "starting worker");
 
@@ -21,7 +40,12 @@ async fn main() {
 
     loop {
         tokio::select! {
-            _ = ticker.tick() => tick().await,
+            _ = ticker.tick() => {
+                if let Err(err) = challenges.delete_expired().await {
+                    tracing::error!(%err, "expired challenge cleanup failed");
+                }
+                tick().await;
+            },
             _ = tokio::signal::ctrl_c() => {
                 tracing::info!("shutdown signal received");
                 break;

@@ -22,6 +22,18 @@ FROM rust:1.93.1-slim-bookworm AS builder
 # invokes — the compiler version is identical either way.
 ENV RUSTUP_TOOLCHAIN=1.93.1
 
+# `sqlx::query!`/`query_as!` type-check against a live database by default,
+# but no database is reachable from inside `docker build`. Forces sqlx to
+# use the pre-generated `.sqlx/` offline cache (checked into git) instead —
+# see "Database migrations & connection pooling" in README.md for how that
+# cache is generated and kept in sync.
+ENV SQLX_OFFLINE=true
+
+# AWS-LC (JWT crypto provider) builds its native library from source.
+RUN apt-get update \
+    && apt-get install --no-install-recommends --yes build-essential cmake perl \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY . .

@@ -23,13 +23,39 @@ publish = false
 [workspace.dependencies]
 axum = "0.8.9"
 config = { path = "config" }
+domain = { path = "domain" }
 dotenvy = "0.15.7"
 envy = "0.4.2"
 serde = { version = "1.0.229", features = ["derive"] }
+# Pinned to the 0.8 line deliberately: sqlx 0.9 raised its MSRV above the
+# toolchain pinned in rust-toolchain.toml and moved combined runtime+TLS
+# features around. Revisit alongside a toolchain bump, not incidentally.
+sqlx = { version = "0.8", default-features = false }
+storage = { path = "storage" }
 telemetry = { path = "telemetry" }
+time = "0.3.44"
 tokio = "1.53.1"
 tower = "0.5.3"
 tower-http = "0.7.0"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"
 tracing-subscriber = "0.3.23"
+uuid = "1.26.1"
+
+soroban = { path = "soroban" }
+async-trait = "0.1.89"
+base64 = "0.22.1"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+rand = "0.8.5"
+sha2 = "0.10.9"
+serde_json = "1.0"
+thiserror = "2.0"
+# Official SDF RPC/XDR crates, kept on the same protocol release.
+stellar-rpc-client = "=27.0.0"
+stellar-xdr = { version = "=27.0.0", features = ["std", "base64"] }
+stellar-strkey = "0.0.16"
+jsonrpsee-core = "0.26.0"
+jsonwebtoken = { version = "10.3", default-features = false, features = ["aws_lc_rs"] }
+url = "2.5"
+
+jsonrpsee-http-client = "0.26.0"

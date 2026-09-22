@@ -34,9 +34,9 @@ Backend/
 | `api` | bin | Axum HTTP server exposing the REST endpoints for patients, providers, consent, records, devices, and audit history. |
 | `worker` | bin | Long-running background process that indexes Soroban contract events into Postgres read models. |
 | `config` | lib | Typed `Settings` loaded from env vars / `.env` — see [Configuration & secrets](#configuration--secrets). |
-| `domain` | lib | Core domain types, validation, and business rules, independent of any web framework, database, or chain client. |
+| `domain` | lib | Core domain types, repository traits, and business rules, independent of any web framework, database, or chain client. |
 | `soroban` | lib | Stellar/Soroban RPC client wrapper, unsigned transaction/XDR building, and generated contract client bindings. |
-| `storage` | lib | PostgreSQL access (via `sqlx`) and encrypted object storage (S3-compatible/IPFS) for off-chain records. |
+| `storage` | lib | PostgreSQL access (via `sqlx`) — the `domain` repository traits' Postgres implementations — and encrypted object storage (S3-compatible/IPFS) for off-chain records. |
 | `telemetry` | lib | Shared `tracing` subscriber setup (`telemetry::init`) used by both binaries — see [Logging](#logging). |
 
 `api` and `worker` are expected to depend on `domain`, `soroban`, `storage`, and `telemetry`; the library crates should not depend on `api` or `worker`.
@@ -57,8 +57,8 @@ cp .env.example .env
 docker compose up
 ```
 
-That is the entire setup; nothing in `.env` needs editing to get a working local
-environment. Once the stack reports healthy:
+Before starting the API, generate `JWT_SIGNING_KEY` and `SEP10_SIGNING_SEED` as
+described under SEP-10 authentication below. Once the stack reports healthy:
 
 ```sh
 curl localhost:8080/healthz   # -> ok
@@ -132,6 +132,91 @@ STELLAR_NETWORK_PASSPHRASE="Standalone Network ; February 2017"
 ```sh
 cd Backend
 cargo build
+```
+
+`cargo build` needs a reachable, migrated PostgreSQL database (`DATABASE_URL`): `sqlx`'s
+`query!`/`query_as!` macros connect to it at compile time to type-check queries against the
+real schema. `docker compose up -d postgres` gets you one; see
+[Database migrations & connection pooling](#database-migrations--connection-pooling) below.
+
+## Database migrations & connection pooling
+
+Migrations live in [`storage/migrations/`](storage/migrations/) as reversible up/down `.sql`
+pairs, applied via [`sqlx`](https://github.com/launchbadge/sqlx). They're a direct
+transcription of [`docs/schema.md`](docs/schema.md) — that document is the source of truth for
+*why* the schema looks the way it does; a migration diverging from it without a stated reason
+is a bug, not a design choice made in passing.
+
+Both `api` and `worker` connect and apply any pending migrations at startup
+(`storage::connect`), before doing anything else — the service fails fast and exits if it
+can't reach or migrate the database, the same way it already fails fast on invalid
+configuration. Calling this from both binaries is safe even if they start concurrently:
+`sqlx`'s migrator takes a Postgres advisory lock while applying migrations, so one binary
+waits for the other rather than racing it.
+
+Pool size is `DATABASE_MAX_CONNECTIONS` (default 10). `DATABASE_TIMEOUT_SECS`
+(default 10) bounds connection acquisition and startup migrations; both must be positive.
+
+### Authoring a migration
+
+```sh
+cargo install sqlx-cli --version 0.8.6 --locked --no-default-features --features postgres,rustls   # once
+cd Backend
+sqlx migrate add --source storage/migrations -r <name>       # creates a new <ts>_<name>.up.sql / .down.sql pair
+sqlx migrate run --source storage/migrations # apply pending migrations to $DATABASE_URL
+sqlx migrate revert --source storage/migrations # roll back the most recent migration
+```
+
+### The `.sqlx` offline query cache
+
+`docker build` has no database to check queries against — there's nothing running inside the
+build container. To make that work, `Backend/.sqlx/` holds a pre-generated cache of every
+`query!`/`query_as!` macro's expected shape, and the `Dockerfile`'s builder stage sets
+`SQLX_OFFLINE=true` to use it instead of connecting live. **Whenever a query changes,
+regenerate and commit it:**
+
+```sh
+cargo sqlx prepare --workspace -- --all-targets
+git add .sqlx
+```
+
+CI verifies the checked-in cache is current (`cargo sqlx prepare --check`) against the live
+database it migrates for every other step, so a forgotten regeneration fails the PR instead of
+silently shipping a stale cache in the image.
+
+## Repository layer
+
+Domain/service code never writes SQL directly. `domain` defines a trait per entity group
+(`PatientRepository`, `ProviderRepository`, `ProviderStaffRepository`, `ConsentRepository`,
+`RecordIndexRepository`, `DeviceRepository`) alongside the plain entity structs and enums they
+return; `storage` provides the only implementations (`PgPatientRepository`, etc.), and every
+`sqlx` query in the workspace lives there. A repository method never returns `sqlx::Error` —
+storage-backend failures are mapped into `domain::RepoError`'s `NotFound` / `Conflict` / `InvalidInput` /
+`Backend` variants before crossing that boundary.
+
+Two things worth knowing about the trait shape:
+
+- **Plain `async fn`, not `#[async_trait]`.** Every call site uses a concrete `impl Repository`
+  (monomorphized), never `dyn Repository`, so the object-safety `async_fn_in_trait` warns about
+  doesn't apply here — silenced deliberately with `#[allow(async_fn_in_trait)]` on each trait.
+- **Chain-sourced tables use `upsert_from_chain`, keyed on the table's natural chain id**, and
+  are safe under indexer replay: an event carrying a ledger no newer than what's already stored
+  is a no-op rather than a regression (`patients`, `provider_staff`, `access_requests`,
+  `consent_grants`, `device_registrations`). Tables with a real API write path instead (`providers`,
+  `record_index`) split creation (`register`/`insert`) from the specific chain-driven fields
+  that update later (`update_verification_status_from_chain`/`mark_anchored`) — see the doc
+  comments in `domain/src/*.rs` for the reasoning behind each table's specific approach.
+
+For mutable ledger-versioned rows, the indexer must coalesce changes into one final
+snapshot per entity per ledger before calling the repository: equal-ledger writes
+are ignored. Ledger numbers alone cannot order multiple events inside one ledger.
+Device revocation is terminal and uses a status guard instead of a ledger watermark.
+
+Tests use `#[sqlx::test]`: a fresh, migrated, throwaway database per test, created from
+`DATABASE_URL`. Run them the same way as any other test:
+
+```sh
+cargo test -p storage -p domain
 ```
 
 ## Formatting & linting
@@ -244,3 +329,109 @@ A git pre-commit hook runs the two commands above automatically, scoped to commi
 
 This points git's `core.hooksPath` at `Backend/.githooks`. To bypass it for a single commit (not
 recommended), use `git commit --no-verify`.
+
+## Soroban RPC
+
+`soroban::SorobanRpc` is the internal async interface. `SorobanRpcClient` wraps the
+[official SDF Rust RPC client](https://github.com/stellar/rs-stellar-rpc-client) and
+`stellar-xdr` types for network info, account loading, simulation, submission,
+transaction lookup, and paginated events. `FakeSorobanRpcClient` scripts responses
+or errors per method and records calls without network access. Unscripted calls fail.
+
+Set `SOROBAN_RPC_URL` and `STELLAR_NETWORK_PASSPHRASE` together for testnet or the
+local quickstart. Both binaries verify the reported passphrase at startup.
+`SOROBAN_RPC_TIMEOUT_SECS` defaults to 15 per attempt; `SOROBAN_RPC_MAX_RETRIES`
+defaults to 3 (maximum 5). Network failures, timeouts, HTTP 408/429/5xx use bounded
+exponential backoff with jitter. Permanent HTTP and JSON-RPC errors are returned
+immediately. Submission preserves statuses such as `ERROR` and `TRY_AGAIN_LATER`
+for the caller; a retry sends the identical envelope, never a rebuilt transaction.
+
+The opt-in smoke test loads a friendbot-funded account and simulates an empty-footprint
+TTL extension, which changes no application state and is never submitted:
+
+```sh
+# Start only the chain; no API secrets needed.
+docker compose up -d stellar
+# Fund a public test account via http://localhost:8000/friendbot?addr=G...
+SOROBAN_RPC_URL=http://localhost:8000/rpc \
+STELLAR_NETWORK_PASSPHRASE='Standalone Network ; February 2017' \
+SMOKE_ACCOUNT=G... cargo test -p soroban local_network_simulates -- --ignored
+```
+
+## SEP-10 authentication
+
+The [SEP-10 protocol](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0010.md)
+is implemented for non-custodial `G...` wallets. Muxed accounts, memo-based custodial
+identities, and client-domain attestation are explicitly unsupported. Existing
+accounts must meet their on-chain medium threshold using distinct Ed25519 signers;
+unfunded accounts require their master signature. A failed account lookup never
+falls back to unfunded-account verification.
+
+Generate separate server credentials, then put them in `.env` or your secret manager:
+
+```sh
+openssl rand -hex 32                           # JWT_SIGNING_KEY
+cargo run -p soroban --example generate_auth_seed # SEP10_SIGNING_SEED
+```
+
+`SEP10_HOME_DOMAIN` is the application's domain. `SEP10_WEB_AUTH_DOMAIN` is the auth
+server hostname and must match `SEP10_WEB_AUTH_ENDPOINT` (the full public URI ending
+in `/auth/challenge`). HTTPS is required except on localhost. Changing the externally
+published API port also requires updating that endpoint. `AUTH_CHALLENGE_TTL_SECS`
+defaults to 900 (maximum 900); `AUTH_TOKEN_TTL_SECS` defaults to 900 (maximum 3600).
+Only the dedicated server seed is held by the backend; patients/providers sign locally.
+
+1. `GET /auth/challenge?account=G...` returns `{transaction, network_passphrase}`.
+   An optional `home_domain` must match configuration.
+2. Sign the returned envelope with Freighter using that network passphrase, preserving
+   the server signature. The sequence is zero; do not submit it to Stellar.
+3. `POST /auth/verify` with JSON `{"transaction":"SIGNED_XDR"}` returns
+   `{token, token_type: "Bearer", expires_in}`. Form encoding is also supported.
+   For standard SEP-10 discovery, POST to `/auth/challenge` is an equivalent token endpoint.
+4. Send `Authorization: Bearer TOKEN` to protected routes. `GET /auth/me` returns the
+   authenticated account. Future protected routers must use `auth::authenticate` and
+   read `Extension<AuthenticatedAccount>`; a session authenticates identity, while
+   patient/provider permissions remain a separate domain authorization decision.
+
+`/.well-known/stellar.toml` publishes the public signing key, network passphrase,
+and auth endpoint. Serve this document at the home domain too if authentication is
+hosted on a different domain. Auth endpoints support CORS preflight and disable caching.
+All auth errors use `{code, message, error}` with a safe message; database/RPC details,
+JWTs, seeds, and signed envelopes are never included in request logs.
+
+Challenges use random 48-byte nonces. Only transaction hashes, account IDs, expiry,
+and consumption timestamps are stored. Atomic consumption rejects replays across
+concurrent requests, restarts, and multiple replicas. Expired challenges are removed
+by the API every minute and by the worker on its tick. JWT verification pins HS256,
+issuer, audience, issue time, and expiration. Rotating the JWT key invalidates existing
+sessions; rotating the SEP-10 seed invalidates outstanding challenges.
+
+## Testing and coverage
+
+Keep unit tests in each module's `#[cfg(test)] mod tests` (large modules may use
+`tests.rs`). Use descriptive behavior names. Inject traits for external dependencies;
+use `FakeSorobanRpcClient` for service tests. RPC transport tests use an ephemeral local
+HTTP server and exercise the official client's encoding, retries, and error handling.
+API tests use the real Axum router with `tower::ServiceExt::oneshot` and real signatures.
+
+Repository tests use `#[sqlx::test]`, creating a fresh migrated Postgres database per
+test and cleaning it up afterward. `DATABASE_URL` must name a disposable database and
+its role must have `CREATEDB`. These are integration tests against real PostgreSQL,
+not SQLite emulations. They cover constraints, replay ordering, filtering, and concurrent
+challenge consumption. SQL remains exclusively in `storage`, including test fixtures.
+
+```sh
+cargo fmt --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo install cargo-llvm-cov --locked --version 0.6.24
+rustup component add llvm-tools-preview
+mkdir -p target/coverage
+cargo llvm-cov --workspace --all-targets --lcov --output-path target/coverage/lcov.info --fail-under-lines 60
+```
+
+CI generates and uploads the LCOV report on every backend PR, with an initial 60%
+workspace line-coverage floor (including domain, storage, API, and Soroban code).
+Live-chain smoke tests remain opt-in; deterministic protocol and transport tests run
+in the standard suite. To build without a database, use `SQLX_OFFLINE=true`; database
+tests still require a real server at runtime.

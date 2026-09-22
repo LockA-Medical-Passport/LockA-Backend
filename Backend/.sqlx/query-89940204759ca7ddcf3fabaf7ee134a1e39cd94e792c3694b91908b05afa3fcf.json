@@ -1,0 +1,126 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO device_registrations (\n                id, chain_device_id, patient_id, device_public_key, device_type, status,\n                registered_ledger, registered_at, revoked_at\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n            ON CONFLICT (chain_device_id) DO UPDATE SET\n                status = CASE\n                    WHEN device_registrations.status = 'revoked' THEN device_registrations.status\n                    ELSE EXCLUDED.status\n                END,\n                revoked_at = CASE\n                    WHEN device_registrations.status = 'revoked' THEN device_registrations.revoked_at\n                    ELSE EXCLUDED.revoked_at\n                END\n            RETURNING\n                id, chain_device_id, patient_id, device_public_key,\n                device_type AS \"device_type: DeviceType\", status AS \"status: DeviceStatus\",\n                registered_ledger, registered_at, revoked_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_device_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "device_public_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "device_type: DeviceType",
+        "type_info": {
+          "Custom": {
+            "name": "device_type",
+            "kind": {
+              "Enum": [
+                "glucometer",
+                "blood_pressure_monitor",
+                "pulse_oximeter",
+                "wearable",
+                "scale",
+                "thermometer"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "status: DeviceStatus",
+        "type_info": {
+          "Custom": {
+            "name": "device_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "registered_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "registered_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "revoked_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Bytea",
+        {
+          "Custom": {
+            "name": "device_type",
+            "kind": {
+              "Enum": [
+                "glucometer",
+                "blood_pressure_monitor",
+                "pulse_oximeter",
+                "wearable",
+                "scale",
+                "thermometer"
+              ]
+            }
+          }
+        },
+        {
+          "Custom": {
+            "name": "device_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        },
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "89940204759ca7ddcf3fabaf7ee134a1e39cd94e792c3694b91908b05afa3fcf"
+}

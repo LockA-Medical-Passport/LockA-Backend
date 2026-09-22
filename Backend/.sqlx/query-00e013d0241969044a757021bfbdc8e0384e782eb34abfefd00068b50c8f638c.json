@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, chain_device_id, patient_id, device_public_key,\n                device_type AS \"device_type: DeviceType\", status AS \"status: DeviceStatus\",\n                registered_ledger, registered_at, revoked_at\n            FROM device_registrations\n            WHERE chain_device_id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "chain_device_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "device_public_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "device_type: DeviceType",
+        "type_info": {
+          "Custom": {
+            "name": "device_type",
+            "kind": {
+              "Enum": [
+                "glucometer",
+                "blood_pressure_monitor",
+                "pulse_oximeter",
+                "wearable",
+                "scale",
+                "thermometer"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "status: DeviceStatus",
+        "type_info": {
+          "Custom": {
+            "name": "device_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "revoked"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "registered_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 7,
+        "name": "registered_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "revoked_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "00e013d0241969044a757021bfbdc8e0384e782eb34abfefd00068b50c8f638c"
+}

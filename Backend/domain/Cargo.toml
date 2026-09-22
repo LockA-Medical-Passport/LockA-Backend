@@ -5,3 +5,13 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde = { workspace = true }
+# `sqlx::Type` derives are the only coupling to sqlx here — no queries, no
+# `PgPool`, no I/O. docs/schema.md's "Enumerations" convention anticipates
+# exactly this: native Postgres enums so `sqlx` can derive Rust types
+# directly, which needs the derive macro and the Postgres-specific trait
+# impls it targets.
+sqlx = { workspace = true, features = ["macros", "postgres"] }
+time = { workspace = true, features = ["serde-well-known"] }
+uuid = { workspace = true, features = ["serde"] }
+async-trait.workspace = true

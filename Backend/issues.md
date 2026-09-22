@@ -14,6 +14,19 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 - **Indexing:** a dedicated worker polls Soroban `get-events` for all LockA contracts and maintains Postgres read models, so the API never queries the chain synchronously on the read path.
 - **Testing pyramid:** unit tests (mocked/fake RPC + repositories) → integration tests (`testcontainers` Postgres) → contract-interaction tests (local Soroban network) → end-to-end tests (full docker-compose stack).
 
+Implementation verification for #9–#12: the workspace suite includes real Postgres
+repository/startup tests, RPC transport tests, and signed SEP-10 API tests. The local
+quickstart smoke test fetches network information, loads a funded account, and
+simulates a no-op without submission. A real Freighter browser session on testnet
+remains a manual interoperability check; follow the flow in `README.md`.
+
+Coverage verification: 79.74% workspace line coverage against an initial 60% floor.
+
+Related work delivered with these issues: auth configuration and redaction (#4),
+auth request validation and centralized JSON errors (#31), persistent atomic replay
+protection, and test conventions/coverage artifact publishing (#35). Other feature
+endpoints and contract-specific services retain their existing issue scope.
+
 ## Issue Index
 
 
@@ -30,13 +43,13 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 ### B. Data Layer
 
 - [ ] **#8** Design PostgreSQL schema for core entities — [GH #9](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/9)
-- [ ] **#9** Set up sqlx migrations & connection pooling — [GH #10](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/10)
-- [ ] **#10** Implement repository/data-access layer for core entities — [GH #11](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/11)
+- [x] **#9** Set up sqlx migrations & connection pooling — [GH #10](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/10)
+- [x] **#10** Implement repository/data-access layer for core entities — [GH #11](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/11)
 
 ### C. Stellar & Soroban Integration
 
-- [ ] **#11** Integrate Stellar/Soroban Rust SDK & RPC client wrapper — [GH #12](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/12)
-- [ ] **#12** Implement SEP-10 wallet authentication (Freighter challenge/response, JWT issuance) — [GH #13](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/13)
+- [x] **#11** Integrate Stellar/Soroban Rust SDK & RPC client wrapper — [GH #12](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/12)
+- [x] **#12** Implement SEP-10 wallet authentication (Freighter challenge/response, JWT issuance) — [GH #13](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/13)
 - [ ] **#13** Implement unsigned transaction/XDR builder service for client-side signing — [GH #14](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/14)
 - [ ] **#14** Integrate PatientIdentityRegistry contract client — [GH #15](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/15)
 - [ ] **#15** Integrate ProviderRegistry contract client — [GH #16](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/16)
@@ -68,7 +81,7 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 
 ### F. Testing
 
-- [ ] **#35** Unit test suite conventions & coverage reporting — [GH #36](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/36)
+- [x] **#35** Unit test suite conventions & coverage reporting — [GH #36](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/36)
 - [ ] **#36** Integration test suite with testcontainers (Postgres) — [GH #37](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/37)
 - [ ] **#37** Contract-interaction test suite against local Soroban network — [GH #38](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/38)
 - [ ] **#38** End-to-end API test suite — [GH #39](https://github.com/LockA-Medical-Passport/LockA-Backend/issues/39)
@@ -226,10 +239,10 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 **Objective:** Implement the schema from #8 as versioned SQL migrations and wire up a pooled async database connection using `sqlx`.
 
 **Tasks:**
-- [ ] Add `sqlx` with the `postgres` and `runtime-tokio` features, plus `sqlx-cli` for migration management.
-- [ ] Write initial migration(s) under `Backend/storage/migrations/` implementing the schema from #8.
-- [ ] Configure a connection pool (`PgPool`) sized from configuration, with health-check on startup.
-- [ ] Enable `sqlx` compile-time query checking against a local database in CI.
+- [x] Add `sqlx` with the `postgres` and `runtime-tokio` features, plus `sqlx-cli` for migration management.
+- [x] Write initial migration(s) under `Backend/storage/migrations/` implementing the schema from #8.
+- [x] Configure a connection pool (`PgPool`) sized from configuration, with health-check on startup.
+- [x] Enable `sqlx` compile-time query checking against a local database in CI.
 
 **Acceptance Criteria:**
 - `sqlx migrate run` applies cleanly to a fresh database.
@@ -243,10 +256,10 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 **Objective:** Provide a typed repository layer (traits + Postgres implementations) over the schema from #8/#9, so domain/service code never writes raw SQL directly.
 
 **Tasks:**
-- [ ] Define repository traits per entity (e.g. `PatientRepository`, `ProviderRepository`, `ConsentRepository`, `RecordIndexRepository`, `DeviceRepository`).
-- [ ] Implement Postgres-backed versions using `sqlx`.
-- [ ] Add unit tests using an in-memory or test-schema Postgres instance (see #36).
-- [ ] Ensure repositories return domain error types, not raw `sqlx::Error`.
+- [x] Define repository traits per entity (e.g. `PatientRepository`, `ProviderRepository`, `ConsentRepository`, `RecordIndexRepository`, `DeviceRepository`).
+- [x] Implement Postgres-backed versions using `sqlx`.
+- [x] Add unit tests using an in-memory or test-schema Postgres instance (see #36).
+- [x] Ensure repositories return domain error types, not raw `sqlx::Error`.
 
 **Acceptance Criteria:**
 - Each repository trait has a working Postgres implementation with passing unit tests.
@@ -265,10 +278,10 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 **Objective:** Establish the foundational client for talking to Stellar/Soroban: account loading, network passphrase handling, and Soroban RPC (simulate/submit/get-events) wrapped behind an internal, testable interface.
 
 **Tasks:**
-- [ ] Add the official Stellar Rust SDK / Soroban client crates to the `soroban` crate.
-- [ ] Implement a `SorobanRpcClient` wrapper around simulate-transaction, send-transaction, get-transaction, and get-events RPC calls, with retry/backoff on transient network errors.
-- [ ] Support both testnet and local-network (quickstart) configurations via config from #4.
-- [ ] Add a mock/fake implementation of the client for use in unit tests that don't need a live network.
+- [x] Add the official Stellar Rust SDK / Soroban client crates to the `soroban` crate.
+- [x] Implement a `SorobanRpcClient` wrapper around simulate-transaction, send-transaction, get-transaction, and get-events RPC calls, with retry/backoff on transient network errors.
+- [x] Support both testnet and local-network (quickstart) configurations via config from #4.
+- [x] Add a mock/fake implementation of the client for use in unit tests that don't need a live network.
 
 **Acceptance Criteria:**
 - Wrapper can fetch network info and simulate a no-op transaction against a local Soroban network.
@@ -282,11 +295,11 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 **Objective:** Implement Stellar's standard SEP-10 Web Authentication protocol so patients and providers can authenticate by signing a challenge transaction with Freighter, without ever exposing a private key to the backend. On success, issue a short-lived JWT/session token for subsequent API calls.
 
 **Tasks:**
-- [ ] Implement `GET /auth/challenge` returning a SEP-10 challenge transaction XDR for a given Stellar public key.
-- [ ] Implement `POST /auth/verify` that validates the signed challenge (signature, time bounds, source/domain checks) per the SEP-10 spec.
-- [ ] On successful verification, issue a signed JWT (or opaque session token backed by a `sessions` table) tied to the Stellar account.
-- [ ] Add middleware to authenticate subsequent requests via the issued token.
-- [ ] Write tests covering expired challenges, wrong signer, and replay attempts.
+- [x] Implement `GET /auth/challenge` returning a SEP-10 challenge transaction XDR for a given Stellar public key.
+- [x] Implement `POST /auth/verify` that validates the signed challenge (signature, time bounds, source/domain checks) per the SEP-10 spec.
+- [x] On successful verification, issue a signed JWT (or opaque session token backed by a `sessions` table) tied to the Stellar account.
+- [x] Add middleware to authenticate subsequent requests via the issued token.
+- [x] Write tests covering expired challenges, wrong signer, and replay attempts.
 
 **Acceptance Criteria:**
 - A client can complete the challenge/verify flow using a real Freighter-signed transaction against testnet and receive a valid session token.
@@ -675,10 +688,10 @@ Each issue below has been opened on GitHub (see the linked issue number). Checkb
 **Objective:** Establish project-wide conventions for unit tests (naming, module layout, mocking strategy) and wire up coverage reporting.
 
 **Tasks:**
-- [ ] Document unit-testing conventions (e.g. `#[cfg(test)] mod tests` per module, trait-based mocking for external dependencies) in `Backend/README.md` or a `CONTRIBUTING.md`.
-- [ ] Add `cargo-llvm-cov` (or `tarpaulin`) to generate coverage reports.
-- [ ] Add a CI job publishing coverage as a build artifact / PR comment.
-- [ ] Set an initial coverage baseline/threshold for core domain and service crates.
+- [x] Document unit-testing conventions (e.g. `#[cfg(test)] mod tests` per module, trait-based mocking for external dependencies) in `Backend/README.md` or a `CONTRIBUTING.md`.
+- [x] Add `cargo-llvm-cov` (or `tarpaulin`) to generate coverage reports.
+- [x] Add a CI job publishing coverage as a build artifact / PR comment.
+- [x] Set an initial coverage baseline/threshold for core domain and service crates.
 
 **Acceptance Criteria:**
 - Coverage report is generated in CI and available as an artifact on every PR.

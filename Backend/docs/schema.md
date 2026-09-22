@@ -690,3 +690,15 @@ These need a decision before #10 writes migrations. None of them block the shape
 5. **Column-level encryption for `notification_channels.destination`.** Application-level
    (via the same KMS as record data keys) or `pgcrypto`? Application-level is more
    consistent with the rest of the design; deferred to #29.
+
+## SEP-10 replay protection (issue #12)
+
+`auth_challenges` is API-owned transient metadata, introduced by migration
+`20260921160000_auth_challenges`. Its primary key is the 32-byte challenge transaction
+hash; other columns are `stellar_account_id`, `expires_at`, and nullable `consumed_at`.
+It has no FK to patient/provider tables because wallets may authenticate before
+registration. An expiry index supports periodic deletion. Verification atomically
+sets `consumed_at` only for an issued, unexpired, unused challenge matching the account.
+No nonce, XDR, signatures, private keys, or medical data are stored. Records are deleted
+after expiry by the API/worker. JWT sessions are short-lived and do not require a
+session table. The API checks current chain signer weights before consuming a challenge.

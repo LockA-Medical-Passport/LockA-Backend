@@ -61,11 +61,60 @@ jobs:
         with:
           workspaces: "Backend -> target"
 
+      - name: Cache sqlx-cli binary
+        id: cache-sqlx-cli
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/sqlx
+            ~/.cargo/bin/cargo-sqlx
+          # Pinned to the same 0.8.x line as the `sqlx` library dependency —
+          # the CLI and the library must agree on the migration file format.
+          key: sqlx-cli-0.8.6-both-binaries-${{ runner.os }}
+
+      - name: Install sqlx-cli
+        if: steps.cache-sqlx-cli.outputs.cache-hit != 'true'
+        run: >-
+          cargo install sqlx-cli --version 0.8.6 --locked
+          --no-default-features --features postgres,rustls
+
+      - name: Apply database migrations
+        # `cargo build`/`clippy`/`test` compile-time-check every `query!`
+        # macro against a live database — the schema has to exist before any
+        # of those run, not just before the binaries execute.
+        run: sqlx migrate run --source storage/migrations
+
+      - name: Verify the .sqlx offline query cache is up to date
+        # The Dockerfile builds with SQLX_OFFLINE=true (no database is
+        # reachable from inside `docker build`), reading Backend/.sqlx/
+        # instead. If a query changed without regenerating that cache, the
+        # image build would silently use stale query metadata — catch it
+        # here, against the live database, instead.
+        run: cargo sqlx prepare --check --workspace -- --all-targets
+
       - name: cargo fmt --check
         run: cargo fmt --check
 
       - name: cargo clippy -- -D warnings
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
-      - name: cargo test
-        run: cargo test --workspace
+      - name: Install coverage tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.6.24
+
+      - name: Install LLVM tools
+        run: rustup component add llvm-tools-preview
+
+      - name: cargo test with coverage
+        run: |
+          mkdir -p target/coverage
+          cargo llvm-cov --workspace --all-targets --locked --lcov --output-path target/coverage/lcov.info --fail-under-lines 60
+
+      - name: Publish coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend/target/coverage/lcov.info
+          if-no-files-found: warn

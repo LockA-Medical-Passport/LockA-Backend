@@ -1,0 +1,168 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO record_index (\n                id, patient_id, ciphertext_sha256, record_category, issuer_provider_id,\n                issued_by_staff_id, storage_backend, storage_uri, ciphertext_size_bytes,\n                encrypted_data_key, key_encryption_key_id\n            )\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n            RETURNING\n                id, patient_id, ciphertext_sha256,\n                record_category AS \"record_category: RecordCategory\",\n                issuer_provider_id, issued_by_staff_id,\n                storage_backend AS \"storage_backend: StorageBackend\",\n                storage_uri, ciphertext_size_bytes, encrypted_data_key, key_encryption_key_id,\n                anchored_ledger, anchored_at, superseded_by_id, created_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "patient_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "ciphertext_sha256",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "record_category: RecordCategory",
+        "type_info": {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "issuer_provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "issued_by_staff_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "storage_backend: StorageBackend",
+        "type_info": {
+          "Custom": {
+            "name": "storage_backend",
+            "kind": {
+              "Enum": [
+                "s3",
+                "ipfs"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "storage_uri",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "ciphertext_size_bytes",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 9,
+        "name": "encrypted_data_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 10,
+        "name": "key_encryption_key_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 11,
+        "name": "anchored_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 12,
+        "name": "anchored_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "superseded_by_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Bytea",
+        {
+          "Custom": {
+            "name": "record_category",
+            "kind": {
+              "Enum": [
+                "consultation",
+                "laboratory",
+                "imaging",
+                "prescription",
+                "immunization",
+                "device_reading",
+                "emergency_profile",
+                "insurance"
+              ]
+            }
+          }
+        },
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "storage_backend",
+            "kind": {
+              "Enum": [
+                "s3",
+                "ipfs"
+              ]
+            }
+          }
+        },
+        "Text",
+        "Int8",
+        "Bytea",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "10603b59f83d8a6ec0a2626c7e5e0da294726faf95412443a65da7e1dc8ffd3b"
+}

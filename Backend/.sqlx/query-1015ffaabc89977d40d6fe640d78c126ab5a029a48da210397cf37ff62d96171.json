@@ -1,0 +1,80 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, provider_id, stellar_account_id,\n                role AS \"role: StaffRole\", status AS \"status: StaffStatus\",\n                authorized_ledger, removed_at\n            FROM provider_staff\n            WHERE provider_id = $1 AND stellar_account_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "provider_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "stellar_account_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "role: StaffRole",
+        "type_info": {
+          "Custom": {
+            "name": "staff_role",
+            "kind": {
+              "Enum": [
+                "admin",
+                "clinician",
+                "technician"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status: StaffStatus",
+        "type_info": {
+          "Custom": {
+            "name": "staff_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "removed"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "authorized_ledger",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 6,
+        "name": "removed_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1015ffaabc89977d40d6fe640d78c126ab5a029a48da210397cf37ff62d96171"
+}
